@@ -1,0 +1,42 @@
+name "aruco_marker_conversion"
+
+import_types_from "base"
+import_types_from "base/Eigen.hpp"
+import_types_from "aruco_marker_conversionTypes.hpp"
+
+
+task_context "Task" do
+
+  
+  ###################
+  # Properties
+  ###################
+  property( "marker_config", "aruco_marker_conversion/MarkerConfig").
+  doc( "Configuration of the known marker-poses in the world-frame")
+  
+  property("position_variance_const", "double", 0.1).
+  doc("A constant variance of the position-output")
+  
+  property("position_variance_linear", "double", 0.01).
+  doc("Position-varaince, which is linear to the distance")
+  
+  property("orientation_variance_const", "double", 0.01).
+  doc("A constant variance of the position-output")
+  
+  
+  ##################
+  # InputPorts
+  ##################
+  input_port( "marker_poses", "std/vector<base::samples::RigidBodyState>").
+  doc( "Detected marker-poses in the camera-frame")
+  
+  ##################
+  # OutputPorts
+  ##################
+  output_port( "camera_pose", "base::samples::RigidBodyState")
+  doc( "Camera-position in the world-frame, based on the detected markers")
+  
+  port_driven 
+  
+end
+

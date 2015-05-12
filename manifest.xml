@@ -1,0 +1,11 @@
+<package>
+  <description brief="Estimate the vehicle-position by using detected Aruco-Marker with known positions">
+  
+  </description>
+  <author>Fabio Zachert/fzachert@tzi.de</author>
+  <license></license>
+  <url>http://</url>
+  <logo>http://</logo>
+  <depend package="base/cmake" />
+  <depend package="base/types" />
+</package>
