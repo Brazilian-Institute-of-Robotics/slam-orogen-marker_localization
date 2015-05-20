@@ -33,9 +33,12 @@ task_context "Task" do
   ##################
   # OutputPorts
   ##################
-  output_port( "camera_pose", "base::samples::RigidBodyState")
+  output_port( "pose", "base::samples::RigidBodyState")
   doc( "Camera-position in the world-frame, based on the detected markers")
   
+  output_port("aruco2body", "base::samples::RigidBodyState")
+  output_port("body2world", "base::samples::RigidBodyState")
+    
   port_driven 
   
 end

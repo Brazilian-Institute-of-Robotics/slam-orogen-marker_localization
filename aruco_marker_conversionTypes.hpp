@@ -21,7 +21,7 @@ namespace aruco_marker_conversion {
   
   struct MarkerConfig{
     std::vector<ArucoMarker> known_marker; //List of all known marker-positions
-    base::Pose body2camera; //Position of the camera in world-frame
+    base::Pose camera2body; //Position of the camera in world-frame
     
   };
   
