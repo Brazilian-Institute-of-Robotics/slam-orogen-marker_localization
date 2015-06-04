@@ -23,6 +23,9 @@ task_context "Task" do
   property("orientation_variance_const", "double", 0.01).
   doc("A constant variance of the position-output")
   
+  property("best_orientation_only", "bool", true).
+  doc("Only write out the best orientation-estimation").
+  doc("If false, the average-orientation is written out")
   
   ##################
   # InputPorts
@@ -33,8 +36,11 @@ task_context "Task" do
   ##################
   # OutputPorts
   ##################
-  output_port( "pose", "base::samples::RigidBodyState")
-  doc( "Camera-position in the world-frame, based on the detected markers")
+  output_port( "pose_output", "base::samples::RigidBodyState").
+  doc( "Vehicle-position in the world-frame, based on the detected markers")
+  
+  output_port( "orientation_output", "base::samples::RigidBodyState").
+  doc( "Vehicle-orientation in the world-frame")
   
   output_port("aruco2body", "base::samples::RigidBodyState")
   output_port("body2world", "base::samples::RigidBodyState")

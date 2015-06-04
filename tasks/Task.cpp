@@ -77,6 +77,9 @@ void Task::updateHook()
       cam2body.translation() = config.camera2body.position;
       cam2body.linear() = config.camera2body.orientation.toRotationMatrix();
       
+      double min_yaw = M_PI;
+      base::Orientation best_ori;
+      
       for(std::vector<base::samples::RigidBodyState>::iterator it = rbs_vector.begin(); it != rbs_vector.end(); it++)
       {	
 	//Extract aruco-id from frame_string
@@ -94,7 +97,8 @@ void Task::updateHook()
 	    
 	    if(it_marker->id == id){
 
-	      base::samples::RigidBodyState rbs_out;
+	      //Initialize transformations
+	      base::samples::RigidBodyState rbs_out, rbs_ori;
 	      base::Affine3d aruco2cam = base::Affine3d::Identity();
 	      base::Affine3d aruco2world = base::Affine3d::Identity();
 	      base::Affine3d aruco2body = base::Affine3d::Identity();	      
@@ -128,18 +132,46 @@ void Task::updateHook()
 	      _aruco2body.write(rbs_a2b);
 	      _body2world.write(rbs_b2w);
 	      
-	      _pose.write(rbs_out);
+	      _pose_output.write(rbs_out);
 	      
-	    }
+		if(!it_marker->position_only){
+		  
+		  if(!_best_orientation_only){
+		    rbs_ori = rbs_out;
+		    rbs_ori.position = base::Vector3d::Constant(NAN);
+		    _orientation_output.write( rbs_ori);
+		  }else{
+		    
+		    double yaw = std::fabs(base::getYaw( base::Quaterniond(aruco2body.linear()) ));
+		    		    
+		    if( yaw < min_yaw){
+		      best_ori = rbs_out.orientation;
+		      min_yaw = yaw;
+		    }
+		    
+		  }
+		  
+		}
+	      
+	    }//End if
 	     
-	  } 
+	  }//End known_marker-loop 
 	    
 	  
-	}	
+	}//End check marker-id	
 	
+      }//End detected marker loop
+      
+      
+      if(_best_orientation_only.get() && min_yaw < M_PI){
+	base::samples::RigidBodyState rbs;
+	rbs.time = rbs_vector.begin()->time;
+	rbs.orientation = best_ori;
+	rbs.cov_orientation = base::Matrix3d::Identity() * _orientation_variance_const.get();
+	_orientation_output.write(rbs);
       }
       
       
-    }    
+    } //End read-inout loop   
     
 }

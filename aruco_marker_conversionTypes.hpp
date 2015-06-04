@@ -17,6 +17,7 @@ namespace aruco_marker_conversion {
   struct ArucoMarker{
     int id; //Marker ID
     base::Pose marker2world; //Pose of the marker in world
+    bool position_only; //Use the marker only for the position-estimation, ignore orientation
   };
   
   struct MarkerConfig{
