@@ -70,8 +70,33 @@ void Task::updateHook()
     
     
     std::vector<base::samples::RigidBodyState> rbs_vector;
+    base::samples::RigidBodyState rbs_in;
+    bool new_rbs  = false, new_vector = false;
+    
+    while( _marker_pose.read(rbs_in) == RTT::NewData){
+      new_rbs = true;
+    }
+    
     while( _marker_poses.read(rbs_vector) == RTT::NewData)
     {
+      new_vector = true;
+    }
+    
+    if( new_vector){
+      
+      if(new_rbs)
+	rbs_vector.push_back(rbs_in);
+      
+    }else{
+      
+      if(new_rbs){
+	rbs_vector.clear();
+	rbs_vector.push_back(rbs_in);
+      }else{
+	return;
+      }
+      
+    }
       
       base::Affine3d cam2body = base::Affine3d::Identity();
       cam2body.translation() = config.camera2body.position;
@@ -141,12 +166,14 @@ void Task::updateHook()
 		    rbs_ori.position = base::Vector3d::Constant(NAN);
 		    _orientation_output.write( rbs_ori);
 		  }else{
+		        
+		    base::Vector3d negativeZ( 0.0, 0.0,-1.0);
+		    base::Vector3d marker_normal = aruco2body * negativeZ;
+		    double marker_view_angle = std::atan2( marker_normal.y(), marker_normal.x() );
 		    
-		    double yaw = std::fabs(base::getYaw( base::Quaterniond(aruco2body.linear()) ));
-		    		    
-		    if( yaw < min_yaw){
+		    if( marker_view_angle < min_yaw && marker_view_angle < _marker_orientation_threshold.get() ){
 		      best_ori = rbs_out.orientation;
-		      min_yaw = yaw;
+		      min_yaw = marker_view_angle;
 		    }
 		    
 		  }
@@ -169,9 +196,6 @@ void Task::updateHook()
 	rbs.orientation = best_ori;
 	rbs.cov_orientation = base::Matrix3d::Identity() * _orientation_variance_const.get();
 	_orientation_output.write(rbs);
-      }
-      
-      
-    } //End read-inout loop   
+      }  
     
 }

@@ -27,11 +27,17 @@ task_context "Task" do
   doc("Only write out the best orientation-estimation").
   doc("If false, the average-orientation is written out")
   
+  property("marker_orientation_threshold", "double", 3.14).
+  doc(" Only use detected marker, with a relative view-angle below this threshold")
+  
   ##################
   # InputPorts
   ##################
   input_port( "marker_poses", "std/vector<base::samples::RigidBodyState>").
   doc( "Detected marker-poses in the camera-frame")
+  
+  input_port( "marker_pose", "base::samples::RigidBodyState").
+  doc( "detected single marker-pose in the camera-frame")
   
   ##################
   # OutputPorts
