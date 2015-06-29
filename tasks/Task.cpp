@@ -139,13 +139,19 @@ void Task::updateHook()
 	      aruco2body = cam2body * aruco2cam;
 	      body2world = aruco2world * aruco2body.inverse();
 	      
+	      
 	      rbs_out.time = it->time;
 	      rbs_out.position = body2world.translation();
-	      rbs_out.cov_position = base::Matrix3d::Identity() * (_position_variance_const.get() 
-		+ ( it->position.norm() * _position_variance_linear.get()) );
-	      
-	      rbs_out.orientation = base::Quaterniond(body2world.linear());
 	      rbs_out.orientation.normalize();
+	      rbs_out.orientation = base::Quaterniond(body2world.linear());
+	      
+	      base::Matrix3d cov = base::Matrix3d::Identity();
+	      cov(0,0) = _position_variance_range.get();
+	      cov(1,1) = std::cos(_position_variance_angle.get()) * it->position.norm();
+	      rbs_out.cov_position = (rbs_out.orientation * cov)
+		    + (base::Matrix3d::Identity() * _position_variance_const.get()) ;
+	      
+	      
 	      rbs_out.cov_orientation = base::Matrix3d::Identity() * _orientation_variance_const.get();
 	      
 	      base::samples::RigidBodyState rbs_a2b;

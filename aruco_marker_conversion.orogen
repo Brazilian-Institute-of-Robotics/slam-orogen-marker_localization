@@ -17,8 +17,11 @@ task_context "Task" do
   property("position_variance_const", "double", 0.1).
   doc("A constant variance of the position-output")
   
-  property("position_variance_linear", "double", 0.01).
+  property("position_variance_range", "double", 0.05).
   doc("Position-varaince, which is linear to the distance")
+  
+  property("position_variance_angle", "double", 0.05).
+  doc("Angular-error in the position-estimation")
   
   property("orientation_variance_const", "double", 0.01).
   doc("A constant variance of the position-output")
