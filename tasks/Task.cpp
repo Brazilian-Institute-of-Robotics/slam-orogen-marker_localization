@@ -142,13 +142,13 @@ void Task::updateHook()
 	      
 	      rbs_out.time = it->time;
 	      rbs_out.position = body2world.translation();
-	      rbs_out.orientation.normalize();
 	      rbs_out.orientation = base::Quaterniond(body2world.linear());
+	      rbs_out.orientation.normalize();
 	      
 	      base::Matrix3d cov = base::Matrix3d::Identity();
 	      cov(0,0) = _position_variance_range.get();
-	      cov(1,1) = std::cos(_position_variance_angle.get()) * it->position.norm();
-	      rbs_out.cov_position = (rbs_out.orientation * cov)
+	      cov(1,1) = std::sin(_position_variance_angle.get()) * it->position.norm();
+	      rbs_out.cov_position =  cov
 		    + (base::Matrix3d::Identity() * _position_variance_const.get()) ;
 	      
 	      
@@ -174,9 +174,10 @@ void Task::updateHook()
 		  }else{
 		        
 		    base::Vector3d negativeZ( 0.0, 0.0,-1.0);
-		    base::Vector3d marker_normal = aruco2body * negativeZ;
-		    double marker_view_angle = std::atan2( marker_normal.y(), marker_normal.x() );
-		    
+		    base::Vector3d marker_normal = rbs_a2b.orientation * negativeZ;
+		    double marker_view_angle = std::fabs( std::atan2( marker_normal.y(), marker_normal.x() ) );
+		    std::cout << "Marker view angle: " << marker_view_angle << std::endl; 
+
 		    if( marker_view_angle < min_yaw && marker_view_angle < _marker_orientation_threshold.get() ){
 		      best_ori = rbs_out.orientation;
 		      min_yaw = marker_view_angle;
