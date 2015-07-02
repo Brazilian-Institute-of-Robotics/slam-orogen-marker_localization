@@ -148,7 +148,7 @@ void Task::updateHook()
 	      base::Matrix3d cov = base::Matrix3d::Identity();
 	      cov(0,0) = _position_variance_range.get();
 	      cov(1,1) = std::sin(_position_variance_angle.get()) * it->position.norm();
-	      rbs_out.cov_position =  cov
+	      rbs_out.cov_position =  (body2world.linear() * cov * body2world.linear().transpose() )
 		    + (base::Matrix3d::Identity() * _position_variance_const.get()) ;
 	      
 	      
