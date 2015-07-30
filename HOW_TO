@@ -1,0 +1,68 @@
+How to use the aruco_marker_conversion-Task:
+
+The aruco_marker_conversion-Task calculates the vehicle-position in the world-frame
+based on detected visual-markers, which have a known orientation and position.
+The calculated position can be used as an input for other pose-estimation and Sensor-fusion-components.
+
+So, this task should be a part of the following task-chain:
+camera_driver.frame -> visual_marker_detector -> aruco_marker_conversion -> Sensor-fusion
+
+An example setup for the auv Leng would be:
+front_camera.frame -> aruco::SingleMarkerDetector.marker_poses 
+-> aruco_marker_conversion.pose_output -> pose_estimator.xyz_position_samples
+
+--------------------------------
+Input of the task:
+The task has two input-ports.
+One port supports a single RigidBodyState, the other supports a vector of RigidBodyStates.
+Which port is needed depends on the output-mode of the visual_marker_detector.
+The Input-RigidBodyState contains the position of detected visual-marker in the camera-frame-coordinatesystem.
+The Input-RBS should also contain informations about the id of the detected visual marker.
+The id is given in the "sourceFrame"-field of the RBS and should be in the format "aruco_id_X_frame",
+where X is the id of the detected marker.
+
+--------------------------------
+Output of the task:
+The task a multiple output-ports, each of them containing a RBS
+The main-outputport of the task is "pose-output", which writes out the vehicle-position and orientation in the world-frame,
+based on each detected marker. If the input contains multiple marker in a vector, there would be multiple output-samples,
+ one for each vector element.
+
+"orientation-output" contains the vehicle-orientation in the world-frame. If multiple input-marker are given,
+the output would be the best orientation-estimation of all detected markers. The best estimation is the estimation of the marker
+ with the lowest angle-of-view.
+ 
+"aruco2body" is the position of each marker in the body-frame.
+This is a dubug-output to check if the camera2body-transformation in right.
+
+"body2world" is also a debug-output to check the transformation of the single-markers is right
+
+--------------------------------
+Configuration of the task:
+The task has multiple propertys:
+
+"marker_config": This struct contains all informations about the known marker- and camera-transformations.
+Fields:
+  - camera2body: This is the transformation of the camera-coordinates-system into body-coordinatessystem.
+		 Often the camera-coordinatesystem has the z-axis in forward-direction, while the vehicle z-axis is upwards.
+	- position: Position of the camera in the body-frame
+	- orientation: Orientation of the caemra in the body-frame as a quaternion
+  - known_marker: List of all known marker, with their ids and poses.
+		  If a marker is detected, but is not contained in this list, it will be ignored and no output
+		  is generated for this marker.
+	ArucoMarker:
+	    -id: Id of the marker
+	    - marker2world: Known Position and orientation of the visual marker in the body-frame
+	    - posisition_only: If true, the marker is only used for the pose_output, but not for the orientation_output
+
+To give the outputsamples a covariance-estimation, the following properties are needed:	    
+"postion_variance_const": This defines a constant position-variance in each 3D-dimension.
+			  This value is added to the whole covarince-estimation.
+			  If only a constant covariance is need, set the other position-variance-properties to 0.
+"position_variance_range": The variance of the range-estimation of the detector			  
+"position_variance_angle": The varaince of the angle-error the the detector	    
+
+"orientation_variance_const": The variance of the vehicle-orientation-estimation as a constant variance in each rotation-dimension 
+
+"marker_orientation_threshold": Only use marker for the orientation-estimation, if their view-angle is below this threshold
+	    
