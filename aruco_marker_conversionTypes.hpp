@@ -23,6 +23,7 @@ namespace aruco_marker_conversion {
   struct MarkerConfig{
     std::vector<ArucoMarker> known_marker; //List of all known marker-positions
     base::Pose camera2body; //Position of the camera in world-frame
+    base::Vector3d marker_offset; //z-Offset to the marker-position
     
   };
   

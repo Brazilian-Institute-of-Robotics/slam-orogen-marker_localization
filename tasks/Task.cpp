@@ -129,7 +129,7 @@ void Task::updateHook()
 	      base::Affine3d aruco2body = base::Affine3d::Identity();	      
 	      base::Affine3d body2world = base::Affine3d::Identity();
 	      
-	      aruco2world.translation() = it_marker->marker2world.position;
+	      aruco2world.translation() = it_marker->marker2world.position + config.marker_offset ;
 	      aruco2world.linear() = it_marker->marker2world.orientation.toRotationMatrix();
 	      
 	      aruco2cam.translation() = it->position;
