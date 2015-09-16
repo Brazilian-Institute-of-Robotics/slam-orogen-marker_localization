@@ -28,7 +28,12 @@ namespace aruco_marker_conversion {
     protected:
 	MarkerConfig config;
 
-
+	int get_aruco_id(const std::string &string);
+	int get_apriltag_id(const std::string &string);
+	
+	base::Matrix3d get_position_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body);
+	base::Matrix3d get_orientation_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body);
+	
     public:
         /** TaskContext constructor for Task
          * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.

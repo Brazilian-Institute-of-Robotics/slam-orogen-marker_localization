@@ -107,16 +107,14 @@ void Task::updateHook()
       
       for(std::vector<base::samples::RigidBodyState>::iterator it = rbs_vector.begin(); it != rbs_vector.end(); it++)
       {	
-	//Extract aruco-id from frame_string
-	int begin = it->sourceFrame.find("aruco_id_");
-	int end = it->sourceFrame.find("_frame");
 	
-	if(begin != std::string::npos && end != std::string::npos && begin < end){
-	  
-	  //Get the string between "aruco_id_" and "_frame"
-	  std::string id_string = it->sourceFrame.substr( begin + 9, end - (begin + 9));
-	  int id = atoi( id_string.c_str() );  
-	  
+	int id = get_aruco_id( it->sourceFrame);
+	
+	if( id == -1){
+	  id = get_apriltag_id( it->sourceFrame);
+	}
+	
+	if( id != -1 ){	  
 	  
 	  for(std::vector<ArucoMarker>::iterator it_marker = config.known_marker.begin(); it_marker != config.known_marker.end(); it_marker++){
 	    
@@ -135,24 +133,18 @@ void Task::updateHook()
 	      aruco2cam.translation() = it->position;
 	      aruco2cam.linear() = it->orientation.toRotationMatrix();	      
 	      
-	      
+	      //Apply transformation-chain
 	      aruco2body = cam2body * aruco2cam;
-	      body2world = aruco2world * aruco2body.inverse();
+	      body2world = aruco2world * aruco2body.inverse();	      
 	      
-	      
+	      //Construct rigidBodyState
 	      rbs_out.time = it->time;
 	      rbs_out.position = body2world.translation();
 	      rbs_out.orientation = base::Quaterniond(body2world.linear());
 	      rbs_out.orientation.normalize();
 	      
-	      base::Matrix3d cov = base::Matrix3d::Identity();
-	      cov(0,0) = _position_variance_range.get();
-	      cov(1,1) = std::sin(_position_variance_angle.get()) * it->position.norm();
-	      rbs_out.cov_position =  (body2world.linear() * cov * body2world.linear().transpose() )
-		    + (base::Matrix3d::Identity() * _position_variance_const.get()) ;
-	      
-	      
-	      rbs_out.cov_orientation = base::Matrix3d::Identity() * _orientation_variance_const.get();
+	      rbs_out.cov_position =  get_position_cov( body2world, aruco2body);	      	      
+	      rbs_out.cov_orientation = get_orientation_cov( body2world, aruco2body);
 	      
 	      base::samples::RigidBodyState rbs_a2b;
 	      base::samples::RigidBodyState rbs_b2w;
@@ -205,4 +197,57 @@ void Task::updateHook()
 	_orientation_output.write(rbs);
       }  
     
+}
+
+int Task::get_aruco_id(const std::string &string){
+
+  //Extract aruco-id from frame_string
+  int begin = string.find("aruco_id_");
+  int end = string.find("_frame");
+	
+  if(begin != std::string::npos && end != std::string::npos && begin < end){
+	  
+	  //Get the string between "aruco_id_" and "_frame"
+	  std::string id_string = string.substr( begin + 9, end - (begin + 9));
+	  return atoi( id_string.c_str() );    
+  }
+  
+  return -1;
+}
+  
+int Task::get_apriltag_id(const std::string &string){
+
+  //Extract aruco-id from frame_string
+  int begin = string.find("apriltag_id_");
+  int end = string.find("_frame");
+	
+  if(begin != std::string::npos && end != std::string::npos && begin < end){
+	  
+	  //Get the string between "aruco_id_" and "_frame"
+	  std::string id_string = string.substr( begin + 12, end - (begin + 12));
+	  return atoi( id_string.c_str() );    
+  }
+  
+  return -1;  
+
+}
+
+
+base::Matrix3d Task::get_position_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body)
+{
+  
+base::Matrix3d cov = base::Matrix3d::Identity();
+cov(0,0) = _position_variance_range.get();
+cov(1,1) = std::sin(_position_variance_angle.get()) * marker2body.translation().norm();
+
+return (body2world.linear() * cov * body2world.linear().transpose() )
+    + (base::Matrix3d::Identity() * _position_variance_const.get()) ;  
+  
+}
+
+
+base::Matrix3d Task::get_orientation_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body)
+{
+
+  return base::Matrix3d::Identity() * _orientation_variance_const.get();
 }
