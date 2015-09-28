@@ -33,6 +33,9 @@ task_context "Task" do
   property("marker_orientation_threshold", "double", 3.14).
   doc(" Only use detected marker, with a relative view-angle below this threshold")
   
+  property("minimum_orientation_markers", "int", 1).
+  doc(" Only calculate the avg orientation, if we have at least X markers")
+  
   ##################
   # InputPorts
   ##################

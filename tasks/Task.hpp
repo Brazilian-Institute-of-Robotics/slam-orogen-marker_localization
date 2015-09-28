@@ -32,8 +32,11 @@ namespace aruco_marker_conversion {
 	int get_apriltag_id(const std::string &string);
 	
 	base::Matrix3d get_position_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body, const base::Affine3d &marker2world);
-	base::Matrix3d get_orientation_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body);
+	base::Matrix3d get_orientation_cov();
 	
+	double get_avg_yaw();
+	
+	std::list<double> vehicle_yaws;
     public:
         /** TaskContext constructor for Task
          * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.

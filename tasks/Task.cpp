@@ -71,6 +71,7 @@ void Task::updateHook()
     
     std::vector<base::samples::RigidBodyState> rbs_vector;
     base::samples::RigidBodyState rbs_in;
+    vehicle_yaws.clear();
     bool new_rbs  = false, new_vector = false;
     
     while( _marker_pose.read(rbs_in) == RTT::NewData){
@@ -144,7 +145,7 @@ void Task::updateHook()
 	      rbs_out.orientation.normalize();
 	      
 	      rbs_out.cov_position =  get_position_cov( body2world, aruco2body, aruco2world);	      	      
-	      rbs_out.cov_orientation = get_orientation_cov( body2world, aruco2body);
+	      rbs_out.cov_orientation = get_orientation_cov();
 	      
 	      base::samples::RigidBodyState rbs_a2b;
 	      base::samples::RigidBodyState rbs_b2w;
@@ -160,9 +161,7 @@ void Task::updateHook()
 		if(!it_marker->position_only){
 		  
 		  if(!_best_orientation_only){
-		    rbs_ori = rbs_out;
-		    rbs_ori.position = base::Vector3d::Constant(NAN);
-		    _orientation_output.write( rbs_ori);
+		    vehicle_yaws.push_back( base::getYaw(rbs_out.orientation) );
 		  }else{
 		        
 		    base::Vector3d negativeZ( 0.0, 0.0,-1.0);
@@ -193,9 +192,16 @@ void Task::updateHook()
 	base::samples::RigidBodyState rbs;
 	rbs.time = rbs_vector.begin()->time;
 	rbs.orientation = best_ori;
-	rbs.cov_orientation = base::Matrix3d::Identity() * _orientation_variance_const.get();
+	rbs.cov_orientation = get_orientation_cov( );
 	_orientation_output.write(rbs);
-      }  
+      }else if(vehicle_yaws.size() > _minimum_orientation_markers.get()){
+	base::samples::RigidBodyState rbs;
+	rbs.time = rbs_vector.begin()->time;
+	double yaw = get_avg_yaw();
+	rbs.orientation = base::Orientation( Eigen::AngleAxisd(yaw, base::Vector3d::UnitZ()) );
+	rbs.cov_orientation = get_orientation_cov( );
+	_orientation_output.write(rbs);
+      }
     
 }
 
@@ -278,8 +284,49 @@ return (body2world.linear() * cov * body2world.linear().transpose() )
 }
 
 
-base::Matrix3d Task::get_orientation_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body)
+base::Matrix3d Task::get_orientation_cov()
 {
 
   return base::Matrix3d::Identity() * _orientation_variance_const.get();
+}
+
+
+double Task::get_avg_yaw(){
+  
+  if(vehicle_yaws.size() < 1)
+    return NAN;
+  
+  double mean = vehicle_yaws.front();
+  double avg_mean_diff = 0.0;
+  
+  for(int i = 0; i < 10; i++){
+    
+    avg_mean_diff = 0.0;
+  
+    for(std::list<double>::iterator it = vehicle_yaws.begin(); it != vehicle_yaws.end(); it++){
+    
+      double mean_diff = *it - mean;
+      
+      while(mean_diff < -M_PI)
+	mean_diff += 2.0 * M_PI;
+      
+      while(mean_diff > M_PI)
+	mean_diff -= 2.0 * M_PI;
+
+      avg_mean_diff += (1.0/vehicle_yaws.size()) * mean_diff;
+      
+    }      
+    
+    mean += avg_mean_diff;
+    
+    while(mean < -M_PI)
+      mean += 2.0 * M_PI;
+      
+    while(mean > M_PI)
+      mean -= 2.0 * M_PI;    
+    
+  }
+  
+  return mean;
+  
 }
