@@ -11,11 +11,11 @@ Task::Task(std::string const& name, TaskCore::TaskState initial_state)
   ArucoMarker marker;
   marker.id = 30;
   marker.marker2world.position = base::Vector3d::Zero();
-  marker.marker2world.orientation = base::Quaterniond(Eigen::AngleAxisd(0, base::Vector3d::UnitZ()) );
+  marker.marker2world.euler_orientation = base::Vector3d::Zero();
   config.known_marker.push_back(marker);
   
   config.camera2body.position = base::Vector3d::Zero();
-  config.camera2body.orientation = base::Quaterniond(Eigen::AngleAxisd(0, base::Vector3d::UnitZ()) );
+  config.camera2body.euler_orientation = base::Vector3d::Zero();
   
   _marker_config.set(config);
   
@@ -28,11 +28,11 @@ Task::Task(std::string const& name, RTT::ExecutionEngine* engine, TaskCore::Task
   ArucoMarker marker;
   marker.id = 30;
   marker.marker2world.position = base::Vector3d::Zero();
-  marker.marker2world.orientation = base::Quaterniond(Eigen::AngleAxisd(0, base::Vector3d::UnitZ()) );
+  marker.marker2world.euler_orientation = base::Vector3d::Zero();
   config.known_marker.push_back(marker);
   
   config.camera2body.position = base::Vector3d::Zero();
-  config.camera2body.orientation = base::Quaterniond(Eigen::AngleAxisd(0, base::Vector3d::UnitZ()) );  
+  config.camera2body.euler_orientation = base::Vector3d::Zero();
   
   _marker_config.set(config);
   
@@ -101,7 +101,7 @@ void Task::updateHook()
       
       base::Affine3d cam2body = base::Affine3d::Identity();
       cam2body.translation() = config.camera2body.position;
-      cam2body.linear() = config.camera2body.orientation.toRotationMatrix();
+      cam2body.linear() = orientation_from_euler(config.camera2body.euler_orientation);
       
       double min_yaw = M_PI;
       base::Orientation best_ori;
@@ -129,10 +129,9 @@ void Task::updateHook()
 	      base::Affine3d body2world = base::Affine3d::Identity();
 	      
 	      aruco2world.translation() = it_marker->marker2world.position + config.marker_offset ;
-	      aruco2world.linear() = it_marker->marker2world.orientation.toRotationMatrix();
+	      aruco2world.linear() = orientation_from_euler(it_marker->marker2world.euler_orientation);
 	      
-	      aruco2cam.translation() = it->position;
-	      aruco2cam.linear() = it->orientation.toRotationMatrix();	      
+              aruco2cam = it->getTransform();
 	      
 	      //Apply transformation-chain
 	      aruco2body = cam2body * aruco2cam;
@@ -140,8 +139,7 @@ void Task::updateHook()
 	      
 	      //Construct rigidBodyState
 	      rbs_out.time = it->time;
-	      rbs_out.position = body2world.translation();
-	      rbs_out.orientation = base::Quaterniond(body2world.linear());
+              rbs_out.setTransform(body2world);
 	      rbs_out.orientation.normalize();
 	      
 	      rbs_out.cov_position =  get_position_cov( body2world, aruco2body, aruco2world);	      	      
@@ -290,6 +288,12 @@ base::Matrix3d Task::get_orientation_cov()
   return base::Matrix3d::Identity() * _orientation_variance_const.get();
 }
 
+base::Matrix3d Task::orientation_from_euler(const base::Vector3d& euler) const
+{
+    return (Eigen::AngleAxisd(euler.z(), Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(euler.y(), Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(euler.x(), Eigen::Vector3d::UnitX())).toRotationMatrix();
+}
 
 double Task::get_avg_yaw(){
   

@@ -33,6 +33,7 @@ namespace aruco_marker_conversion {
 	
 	base::Matrix3d get_position_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body, const base::Affine3d &marker2world);
 	base::Matrix3d get_orientation_cov();
+        base::Matrix3d orientation_from_euler(const base::Vector3d& euler) const;
 	
 	double get_avg_yaw();
 	

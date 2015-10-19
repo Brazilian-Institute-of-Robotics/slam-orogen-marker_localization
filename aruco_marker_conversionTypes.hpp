@@ -13,16 +13,24 @@
  */
 
 namespace aruco_marker_conversion {
+
+  struct Transformation
+  {
+      base::Vector3d position; // 3D position
+      base::Vector3d euler_orientation; // orientation in euler form, applied in zyx order
+
+      Transformation() : position(base::Vector3d::Zero()), euler_orientation(base::Vector3d::Zero()) {}
+  };
   
   struct ArucoMarker{
     int id; //Marker ID
-    base::Pose marker2world; //Pose of the marker in world
+    Transformation marker2world; //Pose of the marker in world
     bool position_only; //Use the marker only for the position-estimation, ignore orientation
   };
   
   struct MarkerConfig{
     std::vector<ArucoMarker> known_marker; //List of all known marker-positions
-    base::Pose camera2body; //Position of the camera in world-frame
+    Transformation camera2body; //Position of the camera in world-frame
     base::Vector3d marker_offset; //z-Offset to the marker-position
     
   };
