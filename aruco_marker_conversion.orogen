@@ -35,6 +35,9 @@ task_context "Task" do
   
   property("minimum_orientation_markers", "int", 1).
   doc(" Only calculate the avg orientation, if we have at least X markers")
+
+  property("use_body_orientation", "bool", false).
+  doc("Use the body orientation in the world frame to compute the body pose")
   
   ##################
   # InputPorts
@@ -44,6 +47,8 @@ task_context "Task" do
   
   input_port( "marker_pose", "base::samples::RigidBodyState").
   doc( "detected single marker-pose in the camera-frame")
+
+  input_port( "body2world_orientaiton", "base::samples::RigidBodyState")
   
   ##################
   # OutputPorts

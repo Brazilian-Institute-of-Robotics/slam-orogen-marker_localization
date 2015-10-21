@@ -55,6 +55,7 @@ bool Task::configureHook()
         return false;
     
     config = _marker_config.get();
+    body2world_orientation.matrix() = base::NaN<double>() * Eigen::Matrix4d::Ones();
     
     return true;
 }
@@ -67,18 +68,27 @@ bool Task::startHook()
 void Task::updateHook()
 {
     TaskBase::updateHook();
-    
+
+    base::samples::RigidBodyState body2world_orientation_rbs;
+    if(_body2world_orientaiton.readNewest(body2world_orientation_rbs) == RTT::NewData)
+        body2world_orientation = base::Affine3d(body2world_orientation_rbs.orientation);
+
+    if(_use_body_orientation.value() && !base::isnotnan(body2world_orientation.matrix()))
+    {
+        std::cout << "Waiting for body orientation in world" << std::endl;
+        return;
+    }
     
     std::vector<base::samples::RigidBodyState> rbs_vector;
     base::samples::RigidBodyState rbs_in;
     vehicle_yaws.clear();
     bool new_rbs  = false, new_vector = false;
     
-    while( _marker_pose.read(rbs_in) == RTT::NewData){
+    if( _marker_pose.readNewest(rbs_in) == RTT::NewData){
       new_rbs = true;
     }
     
-    while( _marker_poses.read(rbs_vector) == RTT::NewData)
+    if( _marker_poses.readNewest(rbs_vector) == RTT::NewData)
     {
       new_vector = true;
     }
@@ -135,7 +145,13 @@ void Task::updateHook()
 	      
 	      //Apply transformation-chain
 	      aruco2body = cam2body * aruco2cam;
-	      body2world = aruco2world * aruco2body.inverse();	      
+              if(_use_body_orientation.value())
+              {
+                  body2world = base::Affine3d(body2world_orientation);
+                  body2world.translation() = aruco2world.translation() - body2world_orientation * aruco2body.translation();
+              }
+              else
+                  body2world = aruco2world * aruco2body.inverse();
 	      
 	      //Construct rigidBodyState
 	      rbs_out.time = it->time;

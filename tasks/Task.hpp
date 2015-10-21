@@ -38,6 +38,7 @@ namespace aruco_marker_conversion {
 	double get_avg_yaw();
 	
 	std::list<double> vehicle_yaws;
+        base::Affine3d body2world_orientation;
     public:
         /** TaskContext constructor for Task
          * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.
