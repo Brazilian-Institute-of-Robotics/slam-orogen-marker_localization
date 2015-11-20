@@ -27,9 +27,16 @@ namespace aruco_marker_conversion {
     Transformation marker2world; //Pose of the marker in world
     bool position_only; //Use the marker only for the position-estimation, ignore orientation
   };
+
+  struct DockingStation{
+    int id; //Marker ID
+    base::Pose marker2dock; //Pose of the marker in world
+  };
   
   struct MarkerConfig{
     std::vector<ArucoMarker> known_marker; //List of all known marker-positions
+    std::vector<DockingStation> docking_station; //List of all known marker-positions
+    Transformation dock2world;
     Transformation camera2body; //Position of the camera in world-frame
     base::Vector3d marker_offset; //z-Offset to the marker-position
     

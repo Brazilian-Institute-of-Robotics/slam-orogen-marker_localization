@@ -55,6 +55,28 @@ bool Task::configureHook()
         return false;
     
     config = _marker_config.get();
+
+	if(!config.docking_station.empty())
+	{
+      base::Affine3d dock2world = base::Affine3d::Identity();
+      dock2world.translation() = config.dock2world.position;
+      dock2world.linear() = orientation_from_euler(config.dock2world.euler_orientation);
+		for(unsigned i = 0; i < config.docking_station.size(); i++)
+		{
+			DockingStation marker_d = config.docking_station[i];
+	        ArucoMarker marker;
+	        marker.id = marker_d.id;
+	        marker.position_only = false;
+	        marker.marker2world.position = dock2world * marker_d.marker2dock.position;
+            base::Orientation marker2world_ori = base::Orientation(dock2world.linear()) * marker_d.marker2dock.orientation;
+	        base::Vector3d euler = base::getEuler(marker2world_ori);
+	        marker.marker2world.euler_orientation = base::Vector3d(euler.z(), euler.y(), euler.x());
+	        config.known_marker.push_back(marker);
+		}
+	    //config.docking_station.clear();
+	}
+    _marker_config.set(config);
+
     body2world_orientation.matrix() = base::NaN<double>() * Eigen::Matrix4d::Ones();
     
     return true;
