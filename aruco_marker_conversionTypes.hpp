@@ -16,6 +16,7 @@ namespace aruco_marker_conversion {
 
   struct Transformation
   {
+      std::string camera_frame;
       base::Vector3d position; // 3D position
       base::Vector3d euler_orientation; // orientation in euler form, applied in zyx order
 
@@ -37,7 +38,7 @@ namespace aruco_marker_conversion {
     std::vector<ArucoMarker> known_marker; //List of all known marker-positions
     std::vector<DockingStation> docking_station; //List of all known marker-positions
     Transformation dock2world;
-    Transformation camera2body; //Position of the camera in world-frame
+    std::vector<Transformation> cameras2body; //Position of the camera in world-frame
     base::Vector3d marker_offset; //z-Offset to the marker-position
     
   };

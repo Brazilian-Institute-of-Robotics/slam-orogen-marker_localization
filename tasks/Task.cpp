@@ -14,9 +14,6 @@ Task::Task(std::string const& name, TaskCore::TaskState initial_state)
   marker.marker2world.euler_orientation = base::Vector3d::Zero();
   config.known_marker.push_back(marker);
   
-  config.camera2body.position = base::Vector3d::Zero();
-  config.camera2body.euler_orientation = base::Vector3d::Zero();
-  
   _marker_config.set(config);
   
 }
@@ -30,9 +27,6 @@ Task::Task(std::string const& name, RTT::ExecutionEngine* engine, TaskCore::Task
   marker.marker2world.position = base::Vector3d::Zero();
   marker.marker2world.euler_orientation = base::Vector3d::Zero();
   config.known_marker.push_back(marker);
-  
-  config.camera2body.position = base::Vector3d::Zero();
-  config.camera2body.euler_orientation = base::Vector3d::Zero();
   
   _marker_config.set(config);
   
@@ -130,11 +124,7 @@ void Task::updateHook()
       }
       
     }
-      
-      base::Affine3d cam2body = base::Affine3d::Identity();
-      cam2body.translation() = config.camera2body.position;
-      cam2body.linear() = orientation_from_euler(config.camera2body.euler_orientation);
-      
+
       double min_yaw = M_PI;
       base::Orientation best_ori;
       
@@ -147,7 +137,9 @@ void Task::updateHook()
 	  id = get_apriltag_id( it->sourceFrame);
 	}
 	
-	if( id != -1 ){	  
+	if( id != -1 )
+        {
+          base::Affine3d cam2body = get_camera_to_body(it->targetFrame);
 	  
 	  for(std::vector<ArucoMarker>::iterator it_marker = config.known_marker.begin(); it_marker != config.known_marker.end(); it_marker++){
 	    
@@ -371,4 +363,18 @@ double Task::get_avg_yaw(){
   
   return mean;
   
+}
+
+base::Affine3d Task::get_camera_to_body(const std::string camera_frame)
+{
+    base::Affine3d cam2body = base::Affine3d::Identity();
+    for(unsigned i = 0; i < config.cameras2body.size(); i++)
+    {
+        if(config.cameras2body[i].camera_frame == camera_frame)
+        {
+            cam2body.translation() = config.cameras2body[i].position;
+            cam2body.linear() = orientation_from_euler(config.cameras2body[i].euler_orientation);
+        }
+    }
+    return cam2body;
 }

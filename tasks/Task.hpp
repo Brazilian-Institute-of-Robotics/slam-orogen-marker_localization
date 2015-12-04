@@ -36,6 +36,8 @@ namespace aruco_marker_conversion {
         base::Matrix3d orientation_from_euler(const base::Vector3d& euler) const;
 	
 	double get_avg_yaw();
+
+        base::Affine3d get_camera_to_body(const std::string camera_frame);
 	
 	std::list<double> vehicle_yaws;
         base::Affine3d body2world_orientation;
