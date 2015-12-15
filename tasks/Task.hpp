@@ -28,6 +28,8 @@ namespace aruco_marker_conversion {
     protected:
 	MarkerConfig config;
 
+        void computeHeading(const std::vector<base::samples::RigidBodyState>& markers, const base::Affine3d& body2world);
+        void computeHeading(base::Affine3d aruco_first2body, base::Affine3d aruco_second2body, base::Affine3d aruco_first2world, base::Affine3d aruco_second2world);
 	int get_aruco_id(const std::string &string);
 	int get_apriltag_id(const std::string &string);
 	

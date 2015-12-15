@@ -4,6 +4,11 @@
 
 using namespace aruco_marker_conversion;
 
+bool isEqual(const ArucoMarker& marker, int id)
+{
+    return marker.id == id;
+}
+
 Task::Task(std::string const& name, TaskCore::TaskState initial_state)
     : TaskBase(name, initial_state)
 {
@@ -37,6 +42,97 @@ Task::~Task()
 {
 }
 
+void Task::computeHeading(const std::vector< base::samples::RigidBodyState >& markers, const base::Affine3d& body2world)
+{
+    std::vector<base::samples::RigidBodyState>::const_iterator marker1 = markers.end();
+    std::vector<base::samples::RigidBodyState>::const_iterator marker2 = markers.end();
+    for(std::vector<base::samples::RigidBodyState>::const_iterator it = markers.begin(); it != markers.end(); it++)
+    {
+        int id = get_apriltag_id(it->sourceFrame);
+        if(std::find(config.ids_heading.begin(), config.ids_heading.end(), id) != config.ids_heading.end())
+        {
+
+            if(marker1 == markers.end())
+            {
+                marker1 = it;
+            }
+            else if(marker2 == markers.end())
+            {
+                marker2 = it;
+            }
+
+            if(marker1 != markers.end() && marker2 != markers.end())
+                break;
+        }
+    }
+
+    if(marker1 != markers.end() && marker2 != markers.end())
+    {
+        base::Orientation rollpitch2world = base::removeYaw(base::Orientation(body2world.linear()));
+        std::vector<ArucoMarker>::const_iterator known_marker1 = std::find_if(config.known_marker.begin(), config.known_marker.end(), boost::bind(isEqual, _1, get_apriltag_id(marker1->sourceFrame)));
+        std::vector<ArucoMarker>::const_iterator known_marker2 = std::find_if(config.known_marker.begin(), config.known_marker.end(), boost::bind(isEqual, _1, get_apriltag_id(marker2->sourceFrame)));
+        if(known_marker1 != config.known_marker.end() && known_marker2 != config.known_marker.end())
+        {
+            base::Affine3d aruco1InBody = rollpitch2world * (get_camera_to_body(marker1->targetFrame) * marker1->getTransform());
+            base::Affine3d aruco2InBody = rollpitch2world * (get_camera_to_body(marker2->targetFrame) * marker2->getTransform());
+            base::Affine3d aruco1InWorld = base::Affine3d::Identity();
+            aruco1InWorld.translation() = known_marker1->marker2world.position;
+            aruco1InWorld.linear() = orientation_from_euler(known_marker1->marker2world.euler_orientation);
+            base::Affine3d aruco2InWorld = base::Affine3d::Identity();
+            aruco2InWorld.translation() = known_marker2->marker2world.position;
+            aruco2InWorld.linear() = orientation_from_euler(known_marker2->marker2world.euler_orientation);
+            computeHeading(aruco1InBody, aruco2InBody, aruco1InWorld, aruco2InWorld);
+        }
+        else
+            std::cerr << "Couldn't find markers selected in ids_heading!" << std::endl;
+    }
+}
+
+void Task::computeHeading(base::Affine3d aruco_first2body, base::Affine3d aruco_second2body, base::Affine3d aruco_first2world, base::Affine3d aruco_second2world)
+{
+    Eigen::Vector3d first_norm = aruco_first2body.translation().normalized();
+    Eigen::Vector3d second_norm = aruco_second2body.translation().normalized();
+    base::Angle angle = base::Angle::fromRad(atan2(first_norm.y(),first_norm.x()) - atan2(second_norm.y(),second_norm.x()));
+
+    Eigen::Vector2d left_p;
+    Eigen::Vector2d right_p;
+    Eigen::Vector2d left_p_world;
+    Eigen::Vector2d right_p_world;
+    if(angle.rad == 0.0)
+    {
+        std::cerr << "cannot compute angle" << std::endl;
+        return;
+    }
+    else if(angle.rad > 0.0)
+    {
+        left_p = aruco_first2body.translation().block(0,0,2,1);
+        right_p = aruco_second2body.translation().block(0,0,2,1);
+        left_p_world = aruco_first2world.translation().block(0,0,2,1);
+        right_p_world = aruco_second2world.translation().block(0,0,2,1);
+    }
+    else
+    {
+        left_p = aruco_second2body.translation().block(0,0,2,1);
+        right_p = aruco_first2body.translation().block(0,0,2,1);
+        left_p_world = aruco_second2world.translation().block(0,0,2,1);
+        right_p_world = aruco_first2world.translation().block(0,0,2,1);
+    }
+
+    Eigen::Vector2d baseline_normal = Eigen::Rotation2Dd(M_PI_2) * (right_p - left_p);
+    Eigen::Vector2d baseline_normal_w = Eigen::Rotation2Dd(M_PI_2) * (right_p_world - left_p_world);
+
+    base::Angle bodyInBaseline = base::Angle::fromRad(-atan2(baseline_normal.normalized().y(),baseline_normal.normalized().x()));
+    base::Angle baselineInWorld = base::Angle::fromRad(atan2(baseline_normal_w.normalized().y(),baseline_normal_w.normalized().x()));
+    base::Angle bodyInWorld = baselineInWorld + bodyInBaseline;
+
+    base::Affine3d orientation2world(Eigen::AngleAxisd(bodyInWorld.getRad(), Eigen::Vector3d::UnitZ()));
+    base::samples::RigidBodyState orientation2world_rbs;
+    orientation2world_rbs.initSane();
+    orientation2world_rbs.time = base::Time::now();
+    orientation2world_rbs.setTransform(orientation2world);
+
+    _orientation2world.write(orientation2world_rbs);
+}
 
 
 /// The following lines are template definitions for the various state machine
@@ -124,6 +220,8 @@ void Task::updateHook()
       }
       
     }
+
+    computeHeading(rbs_vector, body2world_orientation);
 
       double min_yaw = M_PI;
       base::Orientation best_ori;

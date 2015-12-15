@@ -61,6 +61,8 @@ task_context "Task" do
   
   output_port("aruco2body", "base::samples::RigidBodyState")
   output_port("body2world", "base::samples::RigidBodyState")
+
+  output_port("orientation2world", "base::samples::RigidBodyState")
     
   port_driven 
   

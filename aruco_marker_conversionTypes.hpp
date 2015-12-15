@@ -38,9 +38,11 @@ namespace aruco_marker_conversion {
     std::vector<ArucoMarker> known_marker; //List of all known marker-positions
     std::vector<DockingStation> docking_station; //List of all known marker-positions
     Transformation dock2world;
+    std::vector<int> ids_heading;
     std::vector<Transformation> cameras2body; //Position of the camera in world-frame
     base::Vector3d marker_offset; //z-Offset to the marker-position
     
+    MarkerConfig() : marker_offset(base::Vector3d::Zero()) {}
   };
   
 }
