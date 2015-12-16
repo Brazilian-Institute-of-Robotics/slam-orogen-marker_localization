@@ -238,6 +238,18 @@ void Task::updateHook()
 	if( id != -1 )
         {
           base::Affine3d cam2body = get_camera_to_body(it->targetFrame);
+
+
+          if(id == 300)
+          {
+              base::Affine3d aruco2body = cam2body * it->getTransform();
+              base::Orientation aruco_orientation = base::Orientation(aruco2body.linear() * Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()));
+              base::Angle aruco_yaw = base::Angle::fromRad(base::getYaw(aruco_orientation));
+              base::Angle body_yaw = base::Angle::fromRad(base::getYaw(base::Orientation(body2world_orientation.linear())));
+
+              _orientation_offset.write((body_yaw - aruco_yaw) - base::Angle::fromDeg(90.0));
+          }
+
 	  
 	  for(std::vector<ArucoMarker>::iterator it_marker = config.known_marker.begin(); it_marker != config.known_marker.end(); it_marker++){
 	    

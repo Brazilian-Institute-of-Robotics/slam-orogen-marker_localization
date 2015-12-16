@@ -63,6 +63,8 @@ task_context "Task" do
   output_port("body2world", "base::samples::RigidBodyState")
 
   output_port("orientation2world", "base::samples::RigidBodyState")
+
+  output_port "orientation_offset", "base::Angle"
     
   port_driven 
   
