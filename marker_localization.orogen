@@ -25,16 +25,6 @@ task_context "Task" do
   
   property("orientation_variance_const", "double", 0.01).
   doc("A constant variance of the position-output")
-  
-  property("best_orientation_only", "bool", true).
-  doc("Only write out the best orientation-estimation").
-  doc("If false, the average-orientation is written out")
-  
-  property("marker_orientation_threshold", "double", 3.14).
-  doc(" Only use detected marker, with a relative view-angle below this threshold")
-  
-  property("minimum_orientation_markers", "int", 1).
-  doc(" Only calculate the avg orientation, if we have at least X markers")
 
   property("use_body_orientation", "bool", false).
   doc("Use the body orientation in the world frame to compute the body pose")
@@ -53,18 +43,11 @@ task_context "Task" do
   ##################
   # OutputPorts
   ##################
-  output_port( "pose_output", "base::samples::RigidBodyState").
-  doc( "Vehicle-position in the world-frame, based on the detected markers")
-  
-  output_port( "orientation_output", "base::samples::RigidBodyState").
-  doc( "Vehicle-orientation in the world-frame")
-  
-  output_port("aruco2body", "base::samples::RigidBodyState")
-  output_port("body2world", "base::samples::RigidBodyState")
+  output_port( "pose_samples", "base::samples::RigidBodyState").
+  doc( "Vehicle-pose in the world-frame, based on the detected markers")
 
   output_port("orientation2world", "base::samples::RigidBodyState")
 
-  output_port "orientation_offset", "base::Angle"
     
   periodic 0.01
   

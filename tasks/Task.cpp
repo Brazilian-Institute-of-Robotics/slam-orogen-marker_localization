@@ -128,25 +128,24 @@ bool Task::configureHook()
     
     config = _marker_config.get();
 
-	if(!config.docking_station.empty())
-	{
-      base::Affine3d dock2world = base::Affine3d::Identity();
-      dock2world.translation() = config.dock2world.position;
-      dock2world.linear() = orientation_from_euler(config.dock2world.euler_orientation);
-		for(unsigned i = 0; i < config.docking_station.size(); i++)
-		{
-			DockingStation marker_d = config.docking_station[i];
-	        ArucoMarker marker;
-	        marker.id = marker_d.id;
-	        marker.position_only = false;
-	        marker.marker2world.position = dock2world * marker_d.marker2dock.position;
+    if(!config.docking_station.empty())
+    {
+        base::Affine3d dock2world = base::Affine3d::Identity();
+        dock2world.translation() = config.dock2world.position;
+        dock2world.linear() = orientation_from_euler(config.dock2world.euler_orientation);
+        for(unsigned i = 0; i < config.docking_station.size(); i++)
+        {
+            DockingStation marker_d = config.docking_station[i];
+            ArucoMarker marker;
+            marker.id = marker_d.id;
+            marker.marker2world.position = dock2world * marker_d.marker2dock.position;
             base::Orientation marker2world_ori = base::Orientation(dock2world.linear()) * marker_d.marker2dock.orientation;
-	        base::Vector3d euler = base::getEuler(marker2world_ori);
-	        marker.marker2world.euler_orientation = base::Vector3d(euler.z(), euler.y(), euler.x());
-	        config.known_marker.push_back(marker);
-		}
-	    //config.docking_station.clear();
-	}
+            base::Vector3d euler = base::getEuler(marker2world_ori);
+            marker.marker2world.euler_orientation = base::Vector3d(euler.z(), euler.y(), euler.x());
+            config.known_marker.push_back(marker);
+        }
+        //config.docking_station.clear();
+    }
     _marker_config.set(config);
 
     body2world_orientation.matrix() = base::NaN<double>() * Eigen::Matrix4d::Ones();
@@ -165,7 +164,6 @@ void Task::updateHook()
     
     std::vector<base::samples::RigidBodyState> rbs_vector;
     std::vector<base::samples::RigidBodyState> rbs_vector_sample;
-    vehicle_yaws.clear();
     
     while( _marker_poses.read(rbs_vector_sample) == RTT::NewData)
     {
@@ -195,12 +193,9 @@ void Task::updateHook()
     }
 
     computeHeading(rbs_vector, body2world_orientation);
-
-      double min_yaw = M_PI;
-      base::Orientation best_ori;
       
       for(std::vector<base::samples::RigidBodyState>::iterator it = rbs_vector.begin(); it != rbs_vector.end(); it++)
-      {	
+      {
 	
 	int id = get_aruco_id( it->sourceFrame);
 	
@@ -211,87 +206,47 @@ void Task::updateHook()
 	if( id != -1 )
         {
           base::Affine3d cam2body = get_camera_to_body(it->targetFrame);
-
-
-          if(id == 300)
-          {
-              base::Affine3d aruco2body = cam2body * it->getTransform();
-              base::Orientation aruco_orientation = base::Orientation(aruco2body.linear() * Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()));
-              base::Angle aruco_yaw = base::Angle::fromRad(base::getYaw(aruco_orientation));
-              base::Angle body_yaw = base::Angle::fromRad(base::getYaw(base::Orientation(body2world_orientation.linear())));
-
-              _orientation_offset.write((body_yaw - aruco_yaw) - base::Angle::fromDeg(90.0));
-          }
-
 	  
-	  for(std::vector<ArucoMarker>::iterator it_marker = config.known_marker.begin(); it_marker != config.known_marker.end(); it_marker++){
+	  for(std::vector<ArucoMarker>::iterator it_marker = config.known_marker.begin(); it_marker != config.known_marker.end(); it_marker++)
+          {
 	    
-	    if(it_marker->id == id){
+	    if(it_marker->id == id)
+            {
+                //Initialize transformations
+                base::samples::RigidBodyState rbs_out, rbs_ori;
+                base::Affine3d aruco2cam = base::Affine3d::Identity();
+                base::Affine3d aruco2world = base::Affine3d::Identity();
+                base::Affine3d aruco2body = base::Affine3d::Identity();
+                base::Affine3d body2world = base::Affine3d::Identity();
 
-	      //Initialize transformations
-	      base::samples::RigidBodyState rbs_out, rbs_ori;
-	      base::Affine3d aruco2cam = base::Affine3d::Identity();
-	      base::Affine3d aruco2world = base::Affine3d::Identity();
-	      base::Affine3d aruco2body = base::Affine3d::Identity();
-	      base::Affine3d body2world = base::Affine3d::Identity();
-	      
-	      aruco2world.translation() = it_marker->marker2world.position;
-	      aruco2world.linear() = orientation_from_euler(it_marker->marker2world.euler_orientation);
-	      
-              aruco2cam = it->getTransform();
-	      
-	      //Apply transformation-chain
-	      aruco2body = cam2body * aruco2cam;
-              if(_use_body_orientation.value())
-              {
-                  body2world = base::Affine3d(body2world_orientation);
-                  body2world.translation() = aruco2world.translation() - body2world_orientation * aruco2body.translation();
-              }
-              else
-                  body2world = aruco2world * aruco2body.inverse();
-	      
-	      //Construct rigidBodyState
-	      rbs_out.time = it->time;
-              rbs_out.setTransform(body2world);
-	      rbs_out.orientation.normalize();
-              rbs_out.sourceFrame = "body_";
-              rbs_out.sourceFrame += boost::lexical_cast<std::string>(id);
-              rbs_out.targetFrame = "world";
-	      
-	      rbs_out.cov_position =  get_position_cov( body2world, aruco2body, aruco2world);	      	      
-	      rbs_out.cov_orientation = get_orientation_cov();
-	      
-	      base::samples::RigidBodyState rbs_a2b;
-	      base::samples::RigidBodyState rbs_b2w;
-	      
-	      rbs_a2b.setTransform(aruco2body);
-	      rbs_b2w.setTransform(body2world);
-	      
-	      _aruco2body.write(rbs_a2b);
-	      _body2world.write(rbs_b2w);
-	      
-	      _pose_output.write(rbs_out);
-	      
-		if(!it_marker->position_only){
-		  
-		  if(!_best_orientation_only){
-		    vehicle_yaws.push_back( base::getYaw(rbs_out.orientation) );
-		  }else{
-		        
-		    base::Vector3d negativeZ( 0.0, 0.0,-1.0);
-		    base::Vector3d marker_normal = rbs_a2b.orientation * negativeZ;
-		    double marker_view_angle = std::fabs( std::atan2( marker_normal.y(), marker_normal.x() ) );
+                aruco2world.translation() = it_marker->marker2world.position;
+                aruco2world.linear() = orientation_from_euler(it_marker->marker2world.euler_orientation);
 
-		    if( marker_view_angle < min_yaw && marker_view_angle < _marker_orientation_threshold.get() ){
-		      best_ori = rbs_out.orientation;
-		      min_yaw = marker_view_angle;
-		    }
-		    
-		  }
-		  
-		}
-	      
-	    }//End if
+                aruco2cam = it->getTransform();
+
+                //Apply transformation-chain
+                aruco2body = cam2body * aruco2cam;
+                if(_use_body_orientation.value())
+                {
+                    body2world = base::Affine3d(body2world_orientation);
+                    body2world.translation() = aruco2world.translation() - body2world_orientation * aruco2body.translation();
+                }
+                else
+                    body2world = aruco2world * aruco2body.inverse();
+
+                //Construct rigidBodyState
+                rbs_out.time = it->time;
+                rbs_out.setTransform(body2world);
+                rbs_out.orientation.normalize();
+                rbs_out.sourceFrame = "body_";
+                rbs_out.sourceFrame += boost::lexical_cast<std::string>(id);
+                rbs_out.targetFrame = "world";
+
+                rbs_out.cov_position =  get_position_cov( body2world, aruco2body, aruco2world);
+                rbs_out.cov_orientation = get_orientation_cov();
+
+                _pose_samples.write(rbs_out);
+            }
 	     
 	  }//End known_marker-loop 
 	    
@@ -299,23 +254,6 @@ void Task::updateHook()
 	}//End check marker-id	
 	
       }//End detected marker loop
-      
-      
-      if(_best_orientation_only.get() && min_yaw < M_PI){
-	base::samples::RigidBodyState rbs;
-	rbs.time = rbs_vector.begin()->time;
-	rbs.orientation = best_ori;
-	rbs.cov_orientation = get_orientation_cov( );
-	_orientation_output.write(rbs);
-      }else if((int)vehicle_yaws.size() > _minimum_orientation_markers.get()){
-	base::samples::RigidBodyState rbs;
-	rbs.time = rbs_vector.begin()->time;
-	double yaw = get_avg_yaw();
-	rbs.orientation = base::Orientation( Eigen::AngleAxisd(yaw, base::Vector3d::UnitZ()) );
-	rbs.cov_orientation = get_orientation_cov( );
-	_orientation_output.write(rbs);
-      }
-    
 }
 
 int Task::get_aruco_id(const std::string &string){
@@ -376,46 +314,6 @@ base::Matrix3d Task::orientation_from_euler(const base::Vector3d& euler) const
     return (Eigen::AngleAxisd(euler.z(), Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(euler.y(), Eigen::Vector3d::UnitY()) *
             Eigen::AngleAxisd(euler.x(), Eigen::Vector3d::UnitX())).toRotationMatrix();
-}
-
-double Task::get_avg_yaw(){
-  
-  if(vehicle_yaws.size() < 1)
-    return NAN;
-  
-  double mean = vehicle_yaws.front();
-  double avg_mean_diff = 0.0;
-  
-  for(int i = 0; i < 10; i++){
-    
-    avg_mean_diff = 0.0;
-  
-    for(std::list<double>::iterator it = vehicle_yaws.begin(); it != vehicle_yaws.end(); it++){
-    
-      double mean_diff = *it - mean;
-      
-      while(mean_diff < -M_PI)
-	mean_diff += 2.0 * M_PI;
-      
-      while(mean_diff > M_PI)
-	mean_diff -= 2.0 * M_PI;
-
-      avg_mean_diff += (1.0/vehicle_yaws.size()) * mean_diff;
-      
-    }      
-    
-    mean += avg_mean_diff;
-    
-    while(mean < -M_PI)
-      mean += 2.0 * M_PI;
-      
-    while(mean > M_PI)
-      mean -= 2.0 * M_PI;    
-    
-  }
-  
-  return mean;
-  
 }
 
 base::Affine3d Task::get_camera_to_body(const std::string camera_frame)

@@ -36,12 +36,9 @@ namespace marker_localization {
 	base::Matrix3d get_position_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body, const base::Affine3d &marker2world);
 	base::Matrix3d get_orientation_cov();
         base::Matrix3d orientation_from_euler(const base::Vector3d& euler) const;
-	
-	double get_avg_yaw();
 
         base::Affine3d get_camera_to_body(const std::string camera_frame);
 	
-	std::list<double> vehicle_yaws;
         base::Affine3d body2world_orientation;
     public:
         /** TaskContext constructor for Task

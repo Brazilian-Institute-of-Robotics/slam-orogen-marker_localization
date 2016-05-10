@@ -26,7 +26,6 @@ namespace marker_localization {
   struct ArucoMarker{
     int id; //Marker ID
     Transformation marker2world; //Pose of the marker in world
-    bool position_only; //Use the marker only for the position-estimation, ignore orientation
   };
 
   struct DockingStation{
@@ -40,9 +39,8 @@ namespace marker_localization {
     Transformation dock2world;
     std::vector<int> ids_heading;
     std::vector<Transformation> cameras2body; //Position of the camera in world-frame
-    base::Vector3d marker_offset; //z-Offset to the marker-position
     
-    MarkerConfig() : marker_offset(base::Vector3d::Zero()) {}
+    MarkerConfig() {}
   };
   
 }
