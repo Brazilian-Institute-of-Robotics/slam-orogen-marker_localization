@@ -326,7 +326,7 @@ void Task::updateHook()
 	rbs.orientation = best_ori;
 	rbs.cov_orientation = get_orientation_cov( );
 	_orientation_output.write(rbs);
-      }else if(vehicle_yaws.size() > _minimum_orientation_markers.get()){
+      }else if((int)vehicle_yaws.size() > _minimum_orientation_markers.get()){
 	base::samples::RigidBodyState rbs;
 	rbs.time = rbs_vector.begin()->time;
 	double yaw = get_avg_yaw();
@@ -340,8 +340,8 @@ void Task::updateHook()
 int Task::get_aruco_id(const std::string &string){
 
   //Extract aruco-id from frame_string
-  int begin = string.find("aruco_id_");
-  int end = string.find("_frame");
+  size_t begin = string.find("aruco_id_");
+  size_t end = string.find("_frame");
 	
   if(begin != std::string::npos && end != std::string::npos && begin < end){
 	  
@@ -356,8 +356,8 @@ int Task::get_aruco_id(const std::string &string){
 int Task::get_apriltag_id(const std::string &string){
 
   //Extract aruco-id from frame_string
-  int begin = string.find("apriltag_id_");
-  int end = string.find("_frame");
+  size_t begin = string.find("apriltag_id_");
+  size_t end = string.find("_frame");
 	
   if(begin != std::string::npos && end != std::string::npos && begin < end){
 	  
