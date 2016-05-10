@@ -6,7 +6,7 @@ import_types_from "marker_localizationTypes.hpp"
 
 
 task_context "Task" do
-
+  needs_configuration
   
   ###################
   # Properties
