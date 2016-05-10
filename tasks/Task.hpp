@@ -1,12 +1,12 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.hpp */
 
-#ifndef ARUCO_MARKER_CONVERSION_TASK_TASK_HPP
-#define ARUCO_MARKER_CONVERSION_TASK_TASK_HPP
+#ifndef MARKER_LOCALIZATION_TASK_TASK_HPP
+#define MARKER_LOCALIZATION_TASK_TASK_HPP
 
-#include "aruco_marker_conversion/TaskBase.hpp"
+#include "marker_localization/TaskBase.hpp"
 #include <string.h>
 
-namespace aruco_marker_conversion {
+namespace marker_localization {
 
     /*! \class Task 
      * \brief The task context provides and requires services. It uses an ExecutionEngine to perform its functions.
@@ -17,7 +17,7 @@ namespace aruco_marker_conversion {
      * The name of a TaskContext is primarily defined via:
      \verbatim
      deployment 'deployment_name'
-         task('custom_task_name','aruco_marker_multiplexer::Task')
+         task('custom_task_name','marker_localization::Task')
      end
      \endverbatim
      *  It can be dynamically adapted when the deployment is called with a prefix argument. 
@@ -48,7 +48,7 @@ namespace aruco_marker_conversion {
          * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.
          * \param initial_state The initial TaskState of the TaskContext. Default is Stopped state.
          */
-        Task(std::string const& name = "aruco_marker_multiplexer::Task", TaskCore::TaskState initial_state = Stopped);
+        Task(std::string const& name = "marker_localization::Task", TaskCore::TaskState initial_state = Stopped);
 
         /** TaskContext constructor for Task 
          * \param name Name of the task. This name needs to be unique to make it identifiable for nameservices. 

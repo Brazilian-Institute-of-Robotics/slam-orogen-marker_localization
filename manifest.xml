@@ -1,5 +1,5 @@
 <package>
-  <description brief="Estimate the vehicle-position by using detected Aruco-Marker with known positions">
+  <description brief="Estimate the vehicle-position by using detected Markers with known positions">
   
   </description>
   <author>Fabio Zachert/fzachert@tzi.de</author>

@@ -1,8 +1,8 @@
-name "aruco_marker_conversion"
+name "marker_localization"
 
 import_types_from "base"
 import_types_from "base/Eigen.hpp"
-import_types_from "aruco_marker_conversionTypes.hpp"
+import_types_from "marker_localizationTypes.hpp"
 
 
 task_context "Task" do
@@ -11,7 +11,7 @@ task_context "Task" do
   ###################
   # Properties
   ###################
-  property( "marker_config", "aruco_marker_conversion/MarkerConfig").
+  property( "marker_config", "marker_localization/MarkerConfig").
   doc( "Configuration of the known marker-poses in the world-frame")
   
   property("position_variance_const", "double", 0.1).
@@ -66,7 +66,7 @@ task_context "Task" do
 
   output_port "orientation_offset", "base::Angle"
     
-  port_driven 
+  periodic 0.01
   
 end
 

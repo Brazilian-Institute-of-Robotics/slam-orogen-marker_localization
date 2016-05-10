@@ -1,8 +1,9 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
 
 #include "Task.hpp"
+#include <boost/lexical_cast.hpp>
 
-using namespace aruco_marker_conversion;
+using namespace marker_localization;
 
 bool isEqual(const ArucoMarker& marker, int id)
 {
@@ -180,6 +181,27 @@ bool Task::startHook()
 void Task::updateHook()
 {
     TaskBase::updateHook();
+    
+    std::vector<base::samples::RigidBodyState> rbs_vector;
+    std::vector<base::samples::RigidBodyState> rbs_vector_sample;
+    vehicle_yaws.clear();
+    
+    while( _marker_poses.read(rbs_vector_sample) == RTT::NewData)
+    {
+        for(unsigned i = 0; i < rbs_vector_sample.size(); i++)
+        {
+            rbs_vector.push_back(rbs_vector_sample[i]);
+        }
+    }
+    
+    base::samples::RigidBodyState rbs_sample;
+    while( _marker_pose.read(rbs_sample) == RTT::NewData)
+    {
+        rbs_vector.push_back(rbs_sample);
+    }
+    
+    if(rbs_vector.empty())
+        return;
 
     base::samples::RigidBodyState body2world_orientation_rbs;
     if(_body2world_orientaiton.readNewest(body2world_orientation_rbs) == RTT::NewData)
@@ -189,36 +211,6 @@ void Task::updateHook()
     {
         std::cout << "Waiting for body orientation in world" << std::endl;
         return;
-    }
-    
-    std::vector<base::samples::RigidBodyState> rbs_vector;
-    base::samples::RigidBodyState rbs_in;
-    vehicle_yaws.clear();
-    bool new_rbs  = false, new_vector = false;
-    
-    if( _marker_pose.readNewest(rbs_in) == RTT::NewData){
-      new_rbs = true;
-    }
-    
-    if( _marker_poses.readNewest(rbs_vector) == RTT::NewData)
-    {
-      new_vector = true;
-    }
-    
-    if( new_vector){
-      
-      if(new_rbs)
-	rbs_vector.push_back(rbs_in);
-      
-    }else{
-      
-      if(new_rbs){
-	rbs_vector.clear();
-	rbs_vector.push_back(rbs_in);
-      }else{
-	return;
-      }
-      
     }
 
     computeHeading(rbs_vector, body2world_orientation);
@@ -259,10 +251,10 @@ void Task::updateHook()
 	      base::samples::RigidBodyState rbs_out, rbs_ori;
 	      base::Affine3d aruco2cam = base::Affine3d::Identity();
 	      base::Affine3d aruco2world = base::Affine3d::Identity();
-	      base::Affine3d aruco2body = base::Affine3d::Identity();	      
+	      base::Affine3d aruco2body = base::Affine3d::Identity();
 	      base::Affine3d body2world = base::Affine3d::Identity();
 	      
-	      aruco2world.translation() = it_marker->marker2world.position + config.marker_offset ;
+	      aruco2world.translation() = it_marker->marker2world.position;
 	      aruco2world.linear() = orientation_from_euler(it_marker->marker2world.euler_orientation);
 	      
               aruco2cam = it->getTransform();
@@ -281,6 +273,9 @@ void Task::updateHook()
 	      rbs_out.time = it->time;
               rbs_out.setTransform(body2world);
 	      rbs_out.orientation.normalize();
+              rbs_out.sourceFrame = "body_";
+              rbs_out.sourceFrame += boost::lexical_cast<std::string>(id);
+              rbs_out.targetFrame = "world";
 	      
 	      rbs_out.cov_position =  get_position_cov( body2world, aruco2body, aruco2world);	      	      
 	      rbs_out.cov_orientation = get_orientation_cov();
@@ -305,7 +300,6 @@ void Task::updateHook()
 		    base::Vector3d negativeZ( 0.0, 0.0,-1.0);
 		    base::Vector3d marker_normal = rbs_a2b.orientation * negativeZ;
 		    double marker_view_angle = std::fabs( std::atan2( marker_normal.y(), marker_normal.x() ) );
-		    std::cout << "Marker view angle: " << marker_view_angle << std::endl; 
 
 		    if( marker_view_angle < min_yaw && marker_view_angle < _marker_orientation_threshold.get() ){
 		      best_ori = rbs_out.orientation;
@@ -425,7 +419,7 @@ return (body2world.linear() * cov * body2world.linear().transpose() )
 base::Matrix3d Task::get_orientation_cov()
 {
 
-  return base::Matrix3d::Identity() * _orientation_variance_const.get();
+    return base::Matrix3d::Identity() * _orientation_variance_const.get();
 }
 
 base::Matrix3d Task::orientation_from_euler(const base::Vector3d& euler) const

@@ -1,5 +1,5 @@
-#ifndef aruco_marker_conversion_TYPES_HPP
-#define aruco_marker_conversion_TYPES_HPP
+#ifndef marker_localization_TYPES_HPP
+#define marker_localization_TYPES_HPP
 
 #include <vector>
 #include <base/samples/RigidBodyState.hpp>
@@ -12,7 +12,7 @@
  * which case you do not need this file
  */
 
-namespace aruco_marker_conversion {
+namespace marker_localization {
 
   struct Transformation
   {
