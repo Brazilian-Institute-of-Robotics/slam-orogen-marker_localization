@@ -12,31 +12,12 @@ bool isEqual(const ArucoMarker& marker, int id)
 
 Task::Task(std::string const& name, TaskCore::TaskState initial_state)
     : TaskBase(name, initial_state)
-{
-  
-  ArucoMarker marker;
-  marker.id = 30;
-  marker.marker2world.position = base::Vector3d::Zero();
-  marker.marker2world.euler_orientation = base::Vector3d::Zero();
-  config.known_marker.push_back(marker);
-  
-  _marker_config.set(config);
-  
+{  
 }
 
 Task::Task(std::string const& name, RTT::ExecutionEngine* engine, TaskCore::TaskState initial_state)
     : TaskBase(name, engine, initial_state)
 {
-  
-  ArucoMarker marker;
-  marker.id = 30;
-  marker.marker2world.position = base::Vector3d::Zero();
-  marker.marker2world.euler_orientation = base::Vector3d::Zero();
-  config.known_marker.push_back(marker);
-  
-  _marker_config.set(config);
-  
-  
 }
 
 Task::~Task()
@@ -373,38 +354,6 @@ int Task::get_apriltag_id(const std::string &string){
 
 base::Matrix3d Task::get_position_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body, const base::Affine3d &marker2world)
 {
-
-/*  
-base::Matrix3d cov = base::Matrix3d::Identity();
-cov(0,0) = _position_variance_range.get();
-cov(1,1) = std::sin(_position_variance_angle.get()) * marker2body.translation().norm();
-
-return (body2world.linear() * cov * body2world.linear().transpose() )
-    + (base::Matrix3d::Identity() * _position_variance_const.get()) ;  
-*/
-
-  base::Vector3d marker_pos = marker2world.translation();
-  base::Vector3d body_pos = body2world.translation();
-  base::Vector3d rotation_vector = body_pos - marker_pos;
-
-   //Calculate covariance rotation
-    base::Vector3d a = base::Vector3d::UnitX();
-    base::Vector3d b = rotation_vector.normalized();
-    base::Vector3d v = a.cross(b);
-    double s = v.norm();
-    double c = a.dot(b);
-    
-    base::Matrix3d screw_v = base::Matrix3d::Zero();
-    screw_v(0,1) = - v(2);
-    screw_v(0,2) = v(1);
-    screw_v(1,0) = v(2);
-    screw_v(1,2) = -v(0);
-    screw_v(2,0) = -v(1);
-    screw_v(2,1) = v(0);    
-    
-    base::Matrix3d rot = base::Matrix3d::Identity() + screw_v
-      + ( (screw_v * screw_v) * ((1-c)/(s*s))  ); 
-
     base::Matrix3d cov = base::Matrix3d::Identity();
     cov(0,0) = _position_variance_range.get();
     cov(1,1) = std::sin(_position_variance_angle.get()) * marker2body.translation().norm(); 
