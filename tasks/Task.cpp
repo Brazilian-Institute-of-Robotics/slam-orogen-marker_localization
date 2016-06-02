@@ -2,6 +2,7 @@
 
 #include "Task.hpp"
 #include <boost/lexical_cast.hpp>
+#include <limits>
 
 using namespace marker_localization;
 
@@ -26,6 +27,9 @@ Task::~Task()
 
 void Task::computeHeading(const std::vector< base::samples::RigidBodyState >& markers, const base::Affine3d& body2world)
 {
+    if (config.ids_heading.empty())
+        return;
+    
     std::vector<base::samples::RigidBodyState>::const_iterator marker1 = markers.end();
     std::vector<base::samples::RigidBodyState>::const_iterator marker2 = markers.end();
     for(std::vector<base::samples::RigidBodyState>::const_iterator it = markers.begin(); it != markers.end(); it++)
@@ -116,6 +120,26 @@ void Task::computeHeading(base::Affine3d aruco_first2body, base::Affine3d aruco_
     _orientation2world.write(orientation2world_rbs);
 }
 
+bool Task::isMarkerKnown(int id)
+{
+    for (std::vector<ArucoMarker>::const_iterator it = config.known_marker.begin(); it != config.known_marker.end(); it++)
+    {
+        if (it->id == id)
+            return true;
+    }
+    return false;
+}
+
+std::vector< ArucoMarker >::const_iterator Task::getMarkerInfo(int id)
+{
+    for (std::vector<ArucoMarker>::const_iterator it = config.known_marker.begin(); it != config.known_marker.end(); it++)
+    {
+        if (it->id == id)
+            return it;
+    }
+    return config.known_marker.end();
+}
+
 
 /// The following lines are template definitions for the various state machine
 // hooks defined by Orocos::RTT. See Task.hpp for more detailed
@@ -138,6 +162,7 @@ bool Task::configureHook()
             DockingStation marker_d = config.docking_station[i];
             ArucoMarker marker;
             marker.id = marker_d.id;
+            marker.priority = marker_d.priority;
             marker.marker2world.position = dock2world * marker_d.marker2dock.position;
             base::Orientation marker2world_ori = base::Orientation(dock2world.linear()) * marker_d.marker2dock.orientation;
             base::Vector3d euler = base::getEuler(marker2world_ori);
@@ -193,67 +218,81 @@ void Task::updateHook()
     }
 
     computeHeading(rbs_vector, body2world_orientation);
-      
-      for(std::vector<base::samples::RigidBodyState>::iterator it = rbs_vector.begin(); it != rbs_vector.end(); it++)
-      {
-	
-	int id = get_aruco_id( it->sourceFrame);
-	
-	if( id == -1){
-	  id = get_apriltag_id( it->sourceFrame);
-	}
-	
-	if( id != -1 )
+    
+    int highest_priority = std::numeric_limits< int >::min();
+    double marker_distance = std::numeric_limits< double >::max();
+    std::vector<base::samples::RigidBodyState>::const_iterator best_marker = rbs_vector.end();
+    
+    for(std::vector<base::samples::RigidBodyState>::const_iterator it = rbs_vector.begin(); it != rbs_vector.end(); it++)
+    {
+        // extract id
+        int id = get_aruco_id( it->sourceFrame);
+        if( id == -1)
+            id = get_apriltag_id( it->sourceFrame);
+
+        if( id != -1 && isMarkerKnown(id) )
         {
-          base::Affine3d cam2body = get_camera_to_body(it->targetFrame);
-	  
-	  for(std::vector<ArucoMarker>::iterator it_marker = config.known_marker.begin(); it_marker != config.known_marker.end(); it_marker++)
-          {
-	    
-	    if(it_marker->id == id)
+            std::vector<ArucoMarker>::const_iterator marker_info = getMarkerInfo(id);
+            
+            if (marker_info->priority > highest_priority)
             {
-                //Initialize transformations
-                base::samples::RigidBodyState rbs_out, rbs_ori;
-                base::Affine3d aruco2cam = base::Affine3d::Identity();
-                base::Affine3d aruco2world = base::Affine3d::Identity();
-                base::Affine3d aruco2body = base::Affine3d::Identity();
-                base::Affine3d body2world = base::Affine3d::Identity();
-
-                aruco2world.translation() = it_marker->marker2world.position;
-                aruco2world.linear() = orientation_from_euler(it_marker->marker2world.euler_orientation);
-
-                aruco2cam = it->getTransform();
-
-                //Apply transformation-chain
-                aruco2body = cam2body * aruco2cam;
-                if(_use_body_orientation.value())
-                {
-                    body2world = base::Affine3d(body2world_orientation);
-                    body2world.translation() = aruco2world.translation() - body2world_orientation * aruco2body.translation();
-                }
-                else
-                    body2world = aruco2world * aruco2body.inverse();
-
-                //Construct rigidBodyState
-                rbs_out.time = it->time;
-                rbs_out.setTransform(body2world);
-                rbs_out.orientation.normalize();
-                rbs_out.sourceFrame = "body_";
-                rbs_out.sourceFrame += boost::lexical_cast<std::string>(id);
-                rbs_out.targetFrame = "world";
-
-                rbs_out.cov_position =  get_position_cov( body2world, aruco2body, aruco2world);
-                rbs_out.cov_orientation = get_orientation_cov();
-
-                _pose_samples.write(rbs_out);
+                highest_priority = marker_info->priority;
+                marker_distance = it->position.norm();
+                best_marker = it;
             }
-	     
-	  }//End known_marker-loop 
-	    
-	  
-	}//End check marker-id	
-	
-      }//End detected marker loop
+            else if (marker_info->priority == highest_priority && it->position.norm() < marker_distance)
+            {
+                marker_distance = it->position.norm();
+                best_marker = it;
+            }
+        }
+    }   
+            
+    if(best_marker != rbs_vector.end())
+    {
+        // extract id
+        int id = get_aruco_id( best_marker->sourceFrame);
+        if( id == -1)
+            id = get_apriltag_id( best_marker->sourceFrame);
+        
+        base::Affine3d cam2body = get_camera_to_body(best_marker->targetFrame);
+        std::vector<ArucoMarker>::const_iterator marker_info = getMarkerInfo(id);
+
+        //Initialize transformations
+        base::samples::RigidBodyState rbs_out, rbs_ori;
+        base::Affine3d aruco2cam = base::Affine3d::Identity();
+        base::Affine3d aruco2world = base::Affine3d::Identity();
+        base::Affine3d aruco2body = base::Affine3d::Identity();
+        base::Affine3d body2world = base::Affine3d::Identity();
+
+        aruco2world.translation() = marker_info->marker2world.position;
+        aruco2world.linear() = orientation_from_euler(marker_info->marker2world.euler_orientation);
+
+        aruco2cam = best_marker->getTransform();
+
+        //Apply transformation-chain
+        aruco2body = cam2body * aruco2cam;
+        if(_use_body_orientation.value())
+        {
+            body2world = base::Affine3d(body2world_orientation);
+            body2world.translation() = aruco2world.translation() - body2world_orientation * aruco2body.translation();
+        }
+        else
+            body2world = aruco2world * aruco2body.inverse();
+
+        //Construct rigidBodyState
+        rbs_out.time = best_marker->time;
+        rbs_out.setTransform(body2world);
+        rbs_out.orientation.normalize();
+        rbs_out.sourceFrame = "body_";
+        rbs_out.sourceFrame += boost::lexical_cast<std::string>(id);
+        rbs_out.targetFrame = "world";
+
+        rbs_out.cov_position =  get_position_cov( body2world, aruco2body, aruco2world);
+        rbs_out.cov_orientation = get_orientation_cov();
+
+        _pose_samples.write(rbs_out);
+    }
 }
 
 int Task::get_aruco_id(const std::string &string){
