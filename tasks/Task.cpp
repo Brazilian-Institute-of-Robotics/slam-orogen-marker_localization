@@ -34,7 +34,7 @@ void Task::computeHeading(const std::vector< base::samples::RigidBodyState >& ma
     std::vector<base::samples::RigidBodyState>::const_iterator marker2 = markers.end();
     for(std::vector<base::samples::RigidBodyState>::const_iterator it = markers.begin(); it != markers.end(); it++)
     {
-        int id = get_apriltag_id(it->sourceFrame);
+        int id = get_tag_id(it->sourceFrame);
         if(std::find(config.ids_heading.begin(), config.ids_heading.end(), id) != config.ids_heading.end())
         {
 
@@ -55,8 +55,8 @@ void Task::computeHeading(const std::vector< base::samples::RigidBodyState >& ma
     if(marker1 != markers.end() && marker2 != markers.end())
     {
         base::Orientation rollpitch2world = base::removeYaw(base::Orientation(body2world.linear()));
-        std::vector<ArucoMarker>::const_iterator known_marker1 = std::find_if(config.known_marker.begin(), config.known_marker.end(), boost::bind(isEqual, _1, get_apriltag_id(marker1->sourceFrame)));
-        std::vector<ArucoMarker>::const_iterator known_marker2 = std::find_if(config.known_marker.begin(), config.known_marker.end(), boost::bind(isEqual, _1, get_apriltag_id(marker2->sourceFrame)));
+        std::vector<ArucoMarker>::const_iterator known_marker1 = std::find_if(config.known_marker.begin(), config.known_marker.end(), boost::bind(isEqual, _1, get_tag_id(marker1->sourceFrame)));
+        std::vector<ArucoMarker>::const_iterator known_marker2 = std::find_if(config.known_marker.begin(), config.known_marker.end(), boost::bind(isEqual, _1, get_tag_id(marker2->sourceFrame)));
         if(known_marker1 != config.known_marker.end() && known_marker2 != config.known_marker.end())
         {
             base::Affine3d aruco1InBody = rollpitch2world * (get_camera_to_body(marker1->targetFrame) * marker1->getTransform());
@@ -174,6 +174,13 @@ bool Task::configureHook()
     _marker_config.set(config);
 
     body2world_orientation.matrix() = base::NaN<double>() * Eigen::Matrix4d::Ones();
+
+    known_marker_labels.clear();
+    known_marker_labels.push_back("apriltag_");
+    known_marker_labels.push_back("apriltag_id_");
+    known_marker_labels.push_back("arucotag_");
+    known_marker_labels.push_back("aruco_");
+    known_marker_labels.push_back("aruco_id_");
     
     return true;
 }
@@ -226,10 +233,7 @@ void Task::updateHook()
     for(std::vector<base::samples::RigidBodyState>::const_iterator it = rbs_vector.begin(); it != rbs_vector.end(); it++)
     {
         // extract id
-        int id = get_aruco_id( it->sourceFrame);
-        if( id == -1)
-            id = get_apriltag_id( it->sourceFrame);
-
+        int id = get_tag_id( it->sourceFrame);
         if( id != -1 && isMarkerKnown(id) )
         {
             std::vector<ArucoMarker>::const_iterator marker_info = getMarkerInfo(id);
@@ -251,9 +255,7 @@ void Task::updateHook()
     if(best_marker != rbs_vector.end())
     {
         // extract id
-        int id = get_aruco_id( best_marker->sourceFrame);
-        if( id == -1)
-            id = get_apriltag_id( best_marker->sourceFrame);
+        int id = get_tag_id(best_marker->sourceFrame);
         
         base::Affine3d cam2body = get_camera_to_body(best_marker->targetFrame);
         std::vector<ArucoMarker>::const_iterator marker_info = getMarkerInfo(id);
@@ -295,39 +297,36 @@ void Task::updateHook()
     }
 }
 
-int Task::get_aruco_id(const std::string &string){
+int Task::get_tag_id(const std::string& label)
+{
+    size_t begin = std::string::npos;
+    int offset = -1;
+    for(std::vector<std::string>::const_iterator it = known_marker_labels.begin(); it != known_marker_labels.end(); it++)
+    {
+        begin = label.find(*it);
+        if(begin != std::string::npos)
+            offset = begin + it->size();
+    }
+    size_t end = label.find("_frame");
+    int id = -1;
+    if(offset != -1 && end != std::string::npos && offset < end)
+    {
+        std::string id_string = label.substr( offset, end - offset );
+        try
+        {
+            id = boost::lexical_cast<int>( id_string.c_str() );
+        }
+        catch(const boost::bad_lexical_cast&)
+        {
+            id = -1;
+        }
+    }
 
-  //Extract aruco-id from frame_string
-  size_t begin = string.find("aruco_id_");
-  size_t end = string.find("_frame");
-	
-  if(begin != std::string::npos && end != std::string::npos && begin < end){
-	  
-	  //Get the string between "aruco_id_" and "_frame"
-	  std::string id_string = string.substr( begin + 9, end - (begin + 9));
-	  return atoi( id_string.c_str() );    
-  }
-  
-  return -1;
+    if(id == -1)
+        std::cerr << "Couldn't find marker ID in label " << label << std::endl;
+
+    return id;
 }
-  
-int Task::get_apriltag_id(const std::string &string){
-
-  //Extract aruco-id from frame_string
-  size_t begin = string.find("apriltag_id_");
-  size_t end = string.find("_frame");
-	
-  if(begin != std::string::npos && end != std::string::npos && begin < end){
-	  
-	  //Get the string between "aruco_id_" and "_frame"
-	  std::string id_string = string.substr( begin + 12, end - (begin + 12));
-	  return atoi( id_string.c_str() );    
-  }
-  
-  return -1;  
-
-}
-
 
 base::Matrix3d Task::get_position_cov( const base::Affine3d &body2world, const base::Affine3d &marker2body, const base::Affine3d &marker2world)
 {
