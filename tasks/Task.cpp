@@ -173,8 +173,6 @@ bool Task::configureHook()
     }
     _marker_config.set(config);
 
-    body2world_orientation.matrix() = base::NaN<double>() * Eigen::Matrix4d::Ones();
-
     known_marker_labels.clear();
     known_marker_labels.push_back("apriltag_");
     known_marker_labels.push_back("apriltag_id_");
@@ -188,6 +186,9 @@ bool Task::startHook()
 {
     if (! TaskBase::startHook())
         return false;
+    
+    body2world_orientation.matrix() = base::NaN<double>() * Eigen::Matrix4d::Ones();
+
     return true;
 }
 void Task::updateHook()
