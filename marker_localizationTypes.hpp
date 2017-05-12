@@ -27,6 +27,8 @@ namespace marker_localization {
     int id; //Marker ID
     Transformation marker2world; //Pose of the marker in world
     int priority; // a higher priority is favored in case multiple markers a visible
+
+    ArucoMarker() : priority(0) {}
   };
 
   struct DockingStation{
@@ -34,6 +36,7 @@ namespace marker_localization {
     base::Pose marker2dock; //Pose of the marker in world
     int priority; // a higher priority is favored in case multiple markers a visible
     
+    DockingStation() : priority(0) {}
   };
   
   struct MarkerConfig{
