@@ -40,6 +40,9 @@ namespace marker_localization {
         base::Matrix3d orientation_from_euler(const base::Vector3d& euler) const;
 
         base::Affine3d get_camera_to_body(const std::string camera_frame);
+
+        void filterMarkers(const std::vector<base::samples::RigidBodyState>& markers, std::vector<base::samples::RigidBodyState>& filtered_markers,
+                           double max_angle_in_fov, double max_rotation_of_marker, double max_distance) const;
 	
         base::Affine3d body2world_orientation;
     public:

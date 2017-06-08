@@ -26,6 +26,15 @@ task_context "Task" do
   property("orientation_variance_const", "double", 0.01).
   doc("A constant variance of the position-output")
 
+  # FOV threshold to reject markers. Range from 0 to PI/2
+  property("max_angle_in_fov", "double", 1.57)
+
+  # Distance threshold to reject markers.
+  property("max_distance", "double", 100.0)
+
+  # Marker rotation threshold to reject markers. Range from 0 to PI/2
+  property("max_rotation_of_marker", "double", 1.57)
+
   property("use_body_orientation", "bool", false).
   doc("Use the body orientation in the world frame to compute the body pose")
   

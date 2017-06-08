@@ -140,6 +140,29 @@ std::vector< ArucoMarker >::const_iterator Task::getMarkerInfo(int id)
     return config.known_marker.end();
 }
 
+void Task::filterMarkers(const std::vector< base::samples::RigidBodyState >& markers, std::vector< base::samples::RigidBodyState >& filtered_markers,
+                         double max_angle_in_fov, double max_rotation_of_marker, double max_distance) const
+{
+    for(std::vector< base::samples::RigidBodyState >::const_iterator it = markers.begin(); it != markers.end(); it++)
+    {
+        // check distance
+        if(it->position.norm() > max_distance)
+            continue;
+
+        // check angle in camera FOV
+        double angle_in_fov = acos(Eigen::Vector3d::UnitZ().dot(it->position.normalized()));
+        if(angle_in_fov > max_angle_in_fov)
+            continue;
+
+        // check rotation of marker
+        Eigen::Vector3d normal = it->orientation * Eigen::Vector3d::UnitZ();
+        double rotation_of_marker = acos(normal.dot(-Eigen::Vector3d::UnitZ()));
+        if(rotation_of_marker > max_rotation_of_marker)
+            continue;
+
+        filtered_markers.push_back(*it);
+    }
+}
 
 /// The following lines are template definitions for the various state machine
 // hooks defined by Orocos::RTT. See Task.hpp for more detailed
@@ -225,13 +248,16 @@ void Task::updateHook()
         return;
     }
 
-    computeHeading(rbs_vector, body2world_orientation);
-    
+    std::vector<base::samples::RigidBodyState> filtered_markers;
+    filterMarkers(rbs_vector, filtered_markers, _max_angle_in_fov.value(), _max_rotation_of_marker.value(), _max_distance.value());
+
+    computeHeading(filtered_markers, body2world_orientation);
+
     int highest_priority = std::numeric_limits< int >::min();
     double marker_distance = std::numeric_limits< double >::max();
-    std::vector<base::samples::RigidBodyState>::const_iterator best_marker = rbs_vector.end();
-    
-    for(std::vector<base::samples::RigidBodyState>::const_iterator it = rbs_vector.begin(); it != rbs_vector.end(); it++)
+    std::vector<base::samples::RigidBodyState>::const_iterator best_marker = filtered_markers.end();
+
+    for(std::vector<base::samples::RigidBodyState>::const_iterator it = filtered_markers.begin(); it != filtered_markers.end(); it++)
     {
         // extract id
         int id = get_tag_id( it->sourceFrame);
@@ -251,9 +277,9 @@ void Task::updateHook()
                 best_marker = it;
             }
         }
-    }   
-            
-    if(best_marker != rbs_vector.end())
+    }
+
+    if(best_marker != filtered_markers.end())
     {
         // extract id
         int id = get_tag_id(best_marker->sourceFrame);
